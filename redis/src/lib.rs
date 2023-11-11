@@ -18,13 +18,13 @@ pub enum DataKind {
     Push
 }
 
-pub struct Data {
-    value: String,
+pub struct Data<'a> {
+    value: Vec<&'a str>,
     kind: DataKind
 }
 
-impl Data {
-    pub fn deser(input: String, kind: DataKind) -> Data {
+impl Data<'_> {
+    pub fn deser(input: Vec<&str>, kind: DataKind) -> Data {
         Data {
             value: input,
             kind
@@ -80,7 +80,7 @@ pub fn deser(input: &str) -> Data {
             Data::deser(input, DataKind::Push)
         }
         _ => {
-            Data::deser("".to_string(), DataKind::Null)
+            Data::deser(vec!(), DataKind::Null)
         }
     }
 }
@@ -93,11 +93,11 @@ fn skip_fist_byte(input: &str) -> &str {
     &input[1..]
 }
 
-fn remove_terminator(input: &str) -> String {
+fn remove_terminator(input: &str) -> Vec<&str> {
     input
-        .replace(TERMINATOR, " ")
-        .trim()
-        .to_string()
+        .split(TERMINATOR)
+        .filter(|i| !i.is_empty())
+        .collect()
 }
 
 #[cfg(test)]
@@ -105,12 +105,38 @@ mod tests {
     use crate::DataKind;
 
     #[test]
-    pub fn should_deserialize_strings() {
-        let expected = "hello world";
+    pub fn deserialize_string() {
+        let expected = ["hello world"];
         let result = crate::deser("+hello world\r\n");
 
         assert_eq!(result.value, expected);
         assert_eq!(result.kind, DataKind::String);
     }
 
+    #[test]
+    pub fn deserialize_error() {
+        let expected = ["Error message"];
+        let result = crate::deser("-Error message\r\n");
+
+        assert_eq!(result.value, expected);
+        assert_eq!(result.kind, DataKind::Error);
+    }
+
+    #[test]
+    pub fn deserialize_bulk_string() {
+        let expected = ["5", "hello"];
+        let result = crate::deser("$5\r\nhello\r\n");
+
+        assert_eq!(result.value, expected);
+        assert_eq!(result.kind, DataKind::BulkString);
+    }
+
+    #[test]
+    pub fn deserialize_null() {
+        let expected: [&str; 0] = [];
+        let result = crate::deser("_\r\n");
+
+        assert_eq!(result.value, expected);
+        assert_eq!(result.kind, DataKind::Null);
+    }
 }
