@@ -1,13 +1,13 @@
 const TERMINATOR: &str = "\r\n";
 
 #[derive(PartialEq,  Debug)]
-pub enum DataKind {
-    String,
-    Error,
-    Integer,
-    BulkString,
+pub enum Data {
+    String(String),
+    Error(Error),
+    Integer(usize),
+    BulkString(BulkString),
     Array,
-    Null,
+    // Null,
     Boolean,
     Double,
     BigNumber,
@@ -18,18 +18,16 @@ pub enum DataKind {
     Push
 }
 
-pub struct Data<'a> {
-    value: Vec<&'a str>,
-    kind: DataKind
+#[derive(PartialEq,  Debug)]
+pub struct Error {
+    message: String,
+    kind: String,
 }
 
-impl Data<'_> {
-    pub fn deser(input: Vec<&str>, kind: DataKind) -> Data {
-        Data {
-            value: input,
-            kind
-        }
-    }
+#[derive(PartialEq,  Debug)]
+pub struct BulkString {
+    length: usize,
+    data: String,
 }
 
 pub fn deser(input: &str) -> Data {
@@ -38,49 +36,61 @@ pub fn deser(input: &str) -> Data {
 
     match first_byte {
         "+" => {
-            Data::deser(input, DataKind::String)
+            Data::String(input.join(""))
         }
         "-" => {
-            Data::deser(input, DataKind::Error)
+            let st = input.join("");
+            let mut split = st.splitn(2, " ");
+
+            Data::Error(Error {
+                kind: split.next().unwrap_or_default().to_string(),
+                message: split.next().unwrap_or_default().to_string()
+            })
         }
         ":" => {
-            Data::deser(input, DataKind::Integer)
+            let parse_result: usize = input.get(0).unwrap().parse().unwrap();
+            Data::Integer(parse_result)
         }
         "$" => {
-            Data::deser(input, DataKind::BulkString)
+            let blk = BulkString {
+                length: input.get(0).unwrap().to_string().parse().unwrap(),
+                data: input.get(1).unwrap().to_string(),
+            };
+
+            Data::BulkString(blk)
         }
-        "*" => {
-            Data::deser(input, DataKind::Array)
-        }
-        "_" => {
-            Data::deser(input, DataKind::Null)
-        }
-        "#" => {
-            Data::deser(input, DataKind::Boolean)
-        }
-        "," => {
-            Data::deser(input, DataKind::Double)
-        }
-        "(" => {
-            Data::deser(input, DataKind::BigNumber)
-        }
-        "!" => {
-            Data::deser(input, DataKind::BulkError)
-        }
-        "=" => {
-            Data::deser(input, DataKind::VerbatimString)
-        }
-        "%" => {
-            Data::deser(input, DataKind::Map)
-        }
-        "~" => {
-            Data::deser(input, DataKind::Set)
-        }
-        ">" => {
-            Data::deser(input, DataKind::Push)
-        }
+        // "*" => {
+        //     Data::deser(input, DataKind::Array)
+        // }
+        // "_" => {
+        //     Data::deser(input, DataKind::Null)
+        // }
+        // "#" => {
+        //     Data::deser(input, DataKind::Boolean)
+        // }
+        // "," => {
+        //     Data::deser(input, DataKind::Double)
+        // }
+        // "(" => {
+        //     Data::deser(input, DataKind::BigNumber)
+        // }
+        // "!" => {
+        //     Data::deser(input, DataKind::BulkError)
+        // }
+        // "=" => {
+        //     Data::deser(input, DataKind::VerbatimString)
+        // }
+        // "%" => {
+        //     Data::deser(input, DataKind::Map)
+        // }
+        // "~" => {
+        //     Data::deser(input, DataKind::Set)
+        // }
+        // ">" => {
+        //     Data::deser(input, DataKind::Push)
+        // }
         _ => {
-            Data::deser(vec!(), DataKind::Null)
+            Data::String("".to_string())
         }
     }
 }
@@ -96,47 +106,48 @@ fn skip_fist_byte(input: &str) -> &str {
 fn remove_terminator(input: &str) -> Vec<&str> {
     input
         .split(TERMINATOR)
-        .filter(|i| !i.is_empty())
         .collect()
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::DataKind;
+    use crate::{BulkString, Data, Error};
 
     #[test]
     pub fn deserialize_string() {
-        let expected = ["hello world"];
+        let expected = Data::String("hello world".to_string());
         let result = crate::deser("+hello world\r\n");
 
-        assert_eq!(result.value, expected);
-        assert_eq!(result.kind, DataKind::String);
+        assert_eq!(result, expected);
     }
 
     #[test]
     pub fn deserialize_error() {
-        let expected = ["Error message"];
+        let expected = Data::Error(Error {
+            kind: "Error".to_string(),
+            message: "message".to_string()
+        });
         let result = crate::deser("-Error message\r\n");
 
-        assert_eq!(result.value, expected);
-        assert_eq!(result.kind, DataKind::Error);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    pub fn deserialize_integer() {
+        let expected = Data::Integer(10);
+        let result = crate::deser(":10\r\n");
+
+        assert_eq!(result, expected);
     }
 
     #[test]
     pub fn deserialize_bulk_string() {
-        let expected = ["5", "hello"];
+        let expected = Data::BulkString(BulkString {
+            length: 5,
+            data: "hello".to_string(),
+        });
         let result = crate::deser("$5\r\nhello\r\n");
 
-        assert_eq!(result.value, expected);
-        assert_eq!(result.kind, DataKind::BulkString);
-    }
-
-    #[test]
-    pub fn deserialize_null() {
-        let expected: [&str; 0] = [];
-        let result = crate::deser("_\r\n");
-
-        assert_eq!(result.value, expected);
-        assert_eq!(result.kind, DataKind::Null);
+        assert_eq!(result, expected);
     }
 }
