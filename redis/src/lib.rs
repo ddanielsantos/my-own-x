@@ -118,12 +118,16 @@ mod tests {
         assert_eq!(result, Ok(expected));
     }
 
-    #[test]
-    pub fn parse_integer() {
-        let expected = Data::Integer(10);
-        let result = crate::parse(":10\r\n");
+    mod integer {
+        use crate::resp::Data;
 
-        assert_eq!(result, Ok(expected));
+        #[test]
+        pub fn parse_integer() {
+            let expected = Data::Integer(10);
+            let result = crate::parse(":10\r\n");
+
+            assert_eq!(result, Ok(expected));
+        }
     }
 
     #[test]
@@ -139,7 +143,6 @@ mod tests {
 
     mod arrays {
         use crate::resp::{Array, Data};
-        use crate::resp::error::RespError;
 
         #[test]
         pub fn parse_array() {
