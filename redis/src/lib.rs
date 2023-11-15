@@ -7,7 +7,6 @@ pub enum Data {
     Integer(usize),
     BulkString(BulkString),
     Array,
-    // Null,
     Boolean,
     Double,
     BigNumber,
@@ -30,13 +29,19 @@ pub struct BulkString {
     data: String,
 }
 
+#[derive(PartialEq,  Debug)]
 pub enum RespError {
-    InvalidPrefix
+    InvalidPrefix,
+    EmptyBuffer,
 }
 
-pub fn deser(input: &str) -> Result<Data, RespError> {
-    let first_byte = get_first_byte(&input);
-    let input = remove_terminator(skip_fist_byte(input));
+pub fn parse(buffer: &str) -> Result<Data, RespError> {
+    if buffer.is_empty() {
+        return Err(RespError::EmptyBuffer)
+    }
+
+    let first_byte = get_first_byte(&buffer);
+    let input = remove_terminator(skip_fist_byte(buffer));
 
     match first_byte {
         "+" => {
@@ -64,34 +69,34 @@ pub fn deser(input: &str) -> Result<Data, RespError> {
             Ok(Data::BulkString(blk))
         }
         // "*" => {
-        //     Data::deser(input, DataKind::Array)
+        //     Data::parse(input, DataKind::Array)
         // }
         // "_" => {
-        //     Data::deser(input, DataKind::Null)
+        //     Data::parse(input, DataKind::Null)
         // }
         // "#" => {
-        //     Data::deser(input, DataKind::Boolean)
+        //     Data::parse(input, DataKind::Boolean)
         // }
         // "," => {
-        //     Data::deser(input, DataKind::Double)
+        //     Data::parse(input, DataKind::Double)
         // }
         // "(" => {
-        //     Data::deser(input, DataKind::BigNumber)
+        //     Data::parse(input, DataKind::BigNumber)
         // }
         // "!" => {
-        //     Data::deser(input, DataKind::BulkError)
+        //     Data::parse(input, DataKind::BulkError)
         // }
         // "=" => {
-        //     Data::deser(input, DataKind::VerbatimString)
+        //     Data::parse(input, DataKind::VerbatimString)
         // }
         // "%" => {
-        //     Data::deser(input, DataKind::Map)
+        //     Data::parse(input, DataKind::Map)
         // }
         // "~" => {
-        //     Data::deser(input, DataKind::Set)
+        //     Data::parse(input, DataKind::Set)
         // }
         // ">" => {
-        //     Data::deser(input, DataKind::Push)
+        //     Data::parse(input, DataKind::Push)
         // }
         _ => {
             Err(RespError::InvalidPrefix)
@@ -99,16 +104,16 @@ pub fn deser(input: &str) -> Result<Data, RespError> {
     }
 }
 
-fn get_first_byte(input: &str) -> &str {
-    &input[..1]
+fn get_first_byte(buffer: &str) -> &str {
+    &buffer[..1]
 }
 
-fn skip_fist_byte(input: &str) -> &str {
-    &input[1..]
+fn skip_fist_byte(buffer: &str) -> &str {
+    &buffer[1..]
 }
 
-fn remove_terminator(input: &str) -> Vec<&str> {
-    input
+fn remove_terminator(buffer: &str) -> Vec<&str> {
+    buffer
         .split(TERMINATOR)
         .collect()
 }
@@ -118,40 +123,40 @@ mod tests {
     use crate::{BulkString, Data, Error};
 
     #[test]
-    pub fn deserialize_string() {
+    pub fn parse_string() {
         let expected = Data::String("hello world".to_string());
-        let result = crate::deser("+hello world\r\n");
+        let result = crate::parse("+hello world\r\n");
 
-        assert_eq!(result, expected);
+        assert_eq!(result, Ok(expected));
     }
 
     #[test]
-    pub fn deserialize_error() {
+    pub fn parse_error() {
         let expected = Data::Error(Error {
             kind: "Error".to_string(),
             message: "message".to_string()
         });
-        let result = crate::deser("-Error message\r\n");
+        let result = crate::parse("-Error message\r\n");
 
-        assert_eq!(result, expected);
+        assert_eq!(result, Ok(expected));
     }
 
     #[test]
-    pub fn deserialize_integer() {
+    pub fn parse_integer() {
         let expected = Data::Integer(10);
-        let result = crate::deser(":10\r\n");
+        let result = crate::parse(":10\r\n");
 
-        assert_eq!(result, expected);
+        assert_eq!(result, Ok(expected));
     }
 
     #[test]
-    pub fn deserialize_bulk_string() {
+    pub fn parse_bulk_string() {
         let expected = Data::BulkString(BulkString {
             length: 5,
             data: "hello".to_string(),
         });
-        let result = crate::deser("$5\r\nhello\r\n");
+        let result = crate::parse("$5\r\nhello\r\n");
 
-        assert_eq!(result, expected);
+        assert_eq!(result, Ok(expected));
     }
 }
