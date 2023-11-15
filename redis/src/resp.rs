@@ -5,6 +5,12 @@ pub mod error {
     pub enum RespError {
         InvalidPrefix,
         EmptyBuffer,
+        SyntaxError(SyntaxError),
+    }
+
+    #[derive(PartialEq, Debug)]
+    pub struct SyntaxError {
+        pub message: String,
     }
 }
 
