@@ -1,43 +1,8 @@
-const TERMINATOR: &str = "\r\n";
+mod resp;
 
-#[derive(PartialEq,  Debug)]
-pub enum Data {
-    String(String),
-    Error(Error),
-    Integer(usize),
-    BulkString(BulkString),
-    Array,
-    Boolean,
-    Double,
-    BigNumber,
-    BulkError,
-    VerbatimString,
-    Map,
-    Set,
-    Push
-}
-
-#[derive(PartialEq,  Debug)]
-pub struct Error {
-    message: String,
-    kind: String,
-}
-
-#[derive(PartialEq,  Debug)]
-pub struct BulkString {
-    length: usize,
-    data: String,
-}
-
-#[derive(PartialEq,  Debug)]
-pub enum RespError {
-    InvalidPrefix,
-    EmptyBuffer,
-}
-
-pub fn parse(buffer: &str) -> Result<Data, RespError> {
+pub fn parse(buffer: &str) -> Result<resp::Data, resp::error::RespError> {
     if buffer.is_empty() {
-        return Err(RespError::EmptyBuffer)
+        return Err(resp::error::RespError::EmptyBuffer)
     }
 
     let first_byte = get_first_byte(&buffer);
@@ -45,28 +10,28 @@ pub fn parse(buffer: &str) -> Result<Data, RespError> {
 
     match first_byte {
         "+" => {
-            Ok(Data::String(input.join("")))
+            Ok(resp::Data::String(input.join("")))
         }
         "-" => {
             let st = input.join("");
             let mut split = st.splitn(2, " ");
 
-            Ok(Data::Error(Error {
+            Ok(resp::Data::Error(resp::Error {
                 kind: split.next().unwrap_or_default().to_string(),
                 message: split.next().unwrap_or_default().to_string()
             }))
         }
         ":" => {
             let parse_result: usize = input.get(0).unwrap().parse().unwrap();
-            Ok(Data::Integer(parse_result))
+            Ok(resp::Data::Integer(parse_result))
         }
         "$" => {
-            let blk = BulkString {
+            let blk = resp::BulkString {
                 length: input.get(0).unwrap().to_string().parse().unwrap(),
                 data: input.get(1).unwrap().to_string(),
             };
 
-            Ok(Data::BulkString(blk))
+            Ok(resp::Data::BulkString(blk))
         }
         // "*" => {
         //     Data::parse(input, DataKind::Array)
@@ -99,7 +64,7 @@ pub fn parse(buffer: &str) -> Result<Data, RespError> {
         //     Data::parse(input, DataKind::Push)
         // }
         _ => {
-            Err(RespError::InvalidPrefix)
+            Err(resp::error::RespError::InvalidPrefix)
         }
     }
 }
@@ -114,13 +79,13 @@ fn skip_fist_byte(buffer: &str) -> &str {
 
 fn remove_terminator(buffer: &str) -> Vec<&str> {
     buffer
-        .split(TERMINATOR)
+        .split(resp::TERMINATOR)
         .collect()
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{BulkString, Data, Error};
+    use crate::resp::{BulkString, Data, Error};
 
     #[test]
     pub fn parse_string() {
