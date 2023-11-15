@@ -8,6 +8,15 @@ pub fn parse(buffer: &str) -> Result<resp::Data, resp::error::RespError> {
     let first_byte = get_first_byte(&buffer);
     let input = remove_terminator(skip_fist_byte(buffer));
 
+    // TODO: fix SyntaxError on arrays
+    if let Some(val) = input.last() {
+        if !val.is_empty() {
+            return Err(resp::error::RespError::SyntaxError(resp::error::SyntaxError {
+                message: format!("Invalid buffer `{}`, not terminated with \r\n", val)
+            }))
+        }
+    }
+
     match first_byte {
         "+" => {
             Ok(resp::Data::String(input.join("")))
@@ -120,6 +129,7 @@ mod tests {
 
     mod integer {
         use crate::resp::Data;
+        use crate::resp::error::{RespError, SyntaxError};
 
         #[test]
         pub fn parse_integer() {
@@ -127,6 +137,16 @@ mod tests {
             let result = crate::parse(":10\r\n");
 
             assert_eq!(result, Ok(expected));
+        }
+
+        #[test]
+        pub fn parse_integer_error() {
+            let expected: Result<Data, RespError> = Err(RespError::SyntaxError(SyntaxError {
+                message: "Invalid buffer `10`, not terminated with \r\n".to_string()
+            }));
+            let result = crate::parse(":10");
+
+            assert_eq!(result, expected);
         }
     }
 
