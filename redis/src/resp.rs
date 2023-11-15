@@ -14,7 +14,7 @@ pub enum Data {
     Error(Error),
     Integer(usize),
     BulkString(BulkString),
-    Array,
+    Array(Array),
     Boolean,
     Double,
     BigNumber,
@@ -35,4 +35,10 @@ pub struct Error {
 pub struct BulkString {
     pub length: usize,
     pub data: String,
+}
+
+#[derive(PartialEq, Debug)]
+pub struct Array {
+    pub length: usize,
+    pub data: Vec<Data>
 }

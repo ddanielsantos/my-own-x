@@ -36,6 +36,18 @@ pub fn parse(buffer: &str) -> Result<resp::Data, resp::error::RespError> {
         // "*" => {
         //     Data::parse(input, DataKind::Array)
         // }
+        "*" => {
+            let length = input.get(0).unwrap().to_string().parse().unwrap();
+            let data: Vec<resp::Data> = input
+                .iter()
+                .filter_map(|i| parse(i).ok())
+                .collect();
+
+            Ok(resp::Data::Array(resp::Array {
+                length,
+                data,
+            }))
+        }
         // "_" => {
         //     Data::parse(input, DataKind::Null)
         // }
@@ -124,4 +136,25 @@ mod tests {
 
         assert_eq!(result, Ok(expected));
     }
+
+    mod arrays {
+        use crate::resp::{Array, Data};
+        use crate::resp::error::RespError;
+
+        #[test]
+        pub fn parse_array() {
+            let expected = Data::Array(Array {
+                length: 3,
+                data: vec!(
+                    Data::Integer(1),
+                    Data::Integer(2),
+                    Data::Integer(3),
+                ),
+            });
+
+            let result = crate::parse("*3\r\n:1\r\n:2\r\n:3\r\n");
+
+            assert_eq!(result, Ok(expected));
+        }
+
 }
