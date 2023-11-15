@@ -42,13 +42,15 @@ pub fn parse(buffer: &str) -> Result<resp::Data, resp::error::RespError> {
 
             Ok(resp::Data::BulkString(blk))
         }
-        // "*" => {
-        //     Data::parse(input, DataKind::Array)
-        // }
         "*" => {
-            let length = input.get(0).unwrap().to_string().parse().unwrap();
-            let data: Vec<resp::Data> = input
-                .iter()
+            let mut input = input.iter();
+
+            let length = input.next()
+                .unwrap() // TODO: SyntaxError
+                .parse() // TODO: ParseError
+                .unwrap();
+
+            let data  = input
                 .filter_map(|i| parse(i).ok())
                 .collect();
 
