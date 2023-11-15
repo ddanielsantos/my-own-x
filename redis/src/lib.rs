@@ -5,17 +5,21 @@ pub fn parse(buffer: &str) -> Result<resp::Data, resp::error::RespError> {
         return Err(resp::error::RespError::EmptyBuffer)
     }
 
-    let first_byte = get_first_byte(&buffer);
-    let input = remove_terminator(skip_fist_byte(buffer));
+    let (first_byte, input) = split_at_first_byte(&buffer);
+    dbg!(&input);
 
-    // TODO: fix SyntaxError on arrays
-    if let Some(val) = input.last() {
-        if !val.is_empty() {
-            return Err(resp::error::RespError::SyntaxError(resp::error::SyntaxError {
-                message: format!("Invalid buffer `{}`, not terminated with \r\n", val)
-            }))
+    // if first_byte != "*" {
+        if let Some(val) = input.last() {
+            if !val.is_empty() {
+                return Err(resp::error::RespError::SyntaxError(resp::error::SyntaxError {
+                    message: format!("Invalid buffer `{}`, not terminated with \r\n", val)
+                }))
+            }
         }
-    }
+    // } else {
+    //     dbg!(&first_byte);
+    // }
+
 
     match first_byte {
         "+" => {
@@ -51,7 +55,10 @@ pub fn parse(buffer: &str) -> Result<resp::Data, resp::error::RespError> {
                 .unwrap();
 
             let data  = input
-                .filter_map(|i| parse(i).ok())
+                .filter_map(|i| {
+                    dbg!(&i);
+                    parse(i).ok()
+                })
                 .collect();
 
             Ok(resp::Data::Array(resp::Array {
@@ -86,10 +93,17 @@ pub fn parse(buffer: &str) -> Result<resp::Data, resp::error::RespError> {
         // ">" => {
         //     Data::parse(input, DataKind::Push)
         // }
-        _ => {
+        e => {
+            dbg!(&e);
             Err(resp::error::RespError::InvalidPrefix)
         }
     }
+}
+
+fn split_at_first_byte(buffer: &str) -> (&str, Vec<&str>) {
+    let first_byte = get_first_byte(&buffer);
+    let input = remove_terminator(skip_fist_byte(buffer));
+    (first_byte, input)
 }
 
 fn get_first_byte(buffer: &str) -> &str {
