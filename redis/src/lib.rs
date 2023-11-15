@@ -156,5 +156,5 @@ mod tests {
 
             assert_eq!(result, Ok(expected));
         }
-
+    }
 }
