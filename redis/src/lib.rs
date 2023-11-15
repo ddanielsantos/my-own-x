@@ -5,14 +5,14 @@ pub fn parse(buffer: &str) -> Result<resp::Data, resp::error::RespError> {
         return Err(resp::error::RespError::EmptyBuffer)
     }
 
-    let (first_byte, input) = split_at_first_byte(&buffer);
-    dbg!(&input);
+    let (first_byte, rest) = split_at_first_byte(&buffer);
+    dbg!(&rest);
 
     // if first_byte != "*" {
-        if let Some(val) = input.last() {
+        if let Some(val) = rest.last() {
             if !val.is_empty() {
                 return Err(resp::error::RespError::SyntaxError(resp::error::SyntaxError {
-                    message: format!("Invalid buffer `{}`, not terminated with \r\n", val)
+                    message: format!("Invalid buffer `{}`, not terminated with \r\n", buffer)
                 }))
             }
         }
@@ -23,10 +23,10 @@ pub fn parse(buffer: &str) -> Result<resp::Data, resp::error::RespError> {
 
     match first_byte {
         "+" => {
-            Ok(resp::Data::String(input.join("")))
+            Ok(resp::Data::String(rest.join("")))
         }
         "-" => {
-            let st = input.join("");
+            let st = rest.join("");
             let mut split = st.splitn(2, " ");
 
             Ok(resp::Data::Error(resp::Error {
@@ -35,19 +35,19 @@ pub fn parse(buffer: &str) -> Result<resp::Data, resp::error::RespError> {
             }))
         }
         ":" => {
-            let parse_result: usize = input.get(0).unwrap().parse().unwrap();
+            let parse_result: usize = rest.get(0).unwrap().parse().unwrap();
             Ok(resp::Data::Integer(parse_result))
         }
         "$" => {
             let blk = resp::BulkString {
-                length: input.get(0).unwrap().to_string().parse().unwrap(),
-                data: input.get(1).unwrap().to_string(),
+                length: rest.get(0).unwrap().to_string().parse().unwrap(),
+                data: rest.get(1).unwrap().to_string(),
             };
 
             Ok(resp::Data::BulkString(blk))
         }
         "*" => {
-            let mut input = input.iter();
+            let mut input = rest.iter();
 
             let length = input.next()
                 .unwrap() // TODO: SyntaxError
@@ -191,7 +191,7 @@ mod tests {
                 ),
             });
 
-            let result = crate::parse("*3\r\n:1\r\n:2\r\n:3\r\n");
+            let result = crate::parse("*3\r\n:1\r\n:2\r\n:3");
 
             assert_eq!(result, Ok(expected));
         }
