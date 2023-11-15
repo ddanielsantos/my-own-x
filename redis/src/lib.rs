@@ -30,26 +30,30 @@ pub struct BulkString {
     data: String,
 }
 
-pub fn deser(input: &str) -> Data {
+pub enum RespError {
+    InvalidPrefix
+}
+
+pub fn deser(input: &str) -> Result<Data, RespError> {
     let first_byte = get_first_byte(&input);
     let input = remove_terminator(skip_fist_byte(input));
 
     match first_byte {
         "+" => {
-            Data::String(input.join(""))
+            Ok(Data::String(input.join("")))
         }
         "-" => {
             let st = input.join("");
             let mut split = st.splitn(2, " ");
 
-            Data::Error(Error {
+            Ok(Data::Error(Error {
                 kind: split.next().unwrap_or_default().to_string(),
                 message: split.next().unwrap_or_default().to_string()
-            })
+            }))
         }
         ":" => {
             let parse_result: usize = input.get(0).unwrap().parse().unwrap();
-            Data::Integer(parse_result)
+            Ok(Data::Integer(parse_result))
         }
         "$" => {
             let blk = BulkString {
@@ -57,7 +61,7 @@ pub fn deser(input: &str) -> Data {
                 data: input.get(1).unwrap().to_string(),
             };
 
-            Data::BulkString(blk)
+            Ok(Data::BulkString(blk))
         }
         // "*" => {
         //     Data::deser(input, DataKind::Array)
@@ -90,7 +94,7 @@ pub fn deser(input: &str) -> Data {
         //     Data::deser(input, DataKind::Push)
         // }
         _ => {
-            Data::String("".to_string())
+            Err(RespError::InvalidPrefix)
         }
     }
 }
