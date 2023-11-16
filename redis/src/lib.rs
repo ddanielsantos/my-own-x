@@ -2,7 +2,7 @@ mod resp;
 
 pub fn parse(buffer: &str) -> Result<resp::Data, resp::error::RespError> {
     if buffer.is_empty() {
-        return Err(resp::error::RespError::EmptyBuffer)
+        return Err(resp::error::RespError::EmptyBuffer);
     }
 
     let (first_byte, rest) = split_at_first_byte(&buffer);
@@ -12,7 +12,7 @@ pub fn parse(buffer: &str) -> Result<resp::Data, resp::error::RespError> {
             if first_byte != "*" {
                 return Err(resp::error::RespError::SyntaxError(resp::error::SyntaxError {
                     message: format!("Invalid buffer `{}`, not terminated with \r\n", buffer)
-                }))
+                }));
             }
         }
     }
@@ -28,7 +28,7 @@ pub fn parse(buffer: &str) -> Result<resp::Data, resp::error::RespError> {
 
             Ok(resp::Data::Error(resp::Error {
                 kind: split.next().unwrap_or_default().to_string(),
-                message: split.next().unwrap_or_default().to_string()
+                message: split.next().unwrap_or_default().to_string(),
             }))
         }
         ":" => {
@@ -52,7 +52,7 @@ pub fn parse(buffer: &str) -> Result<resp::Data, resp::error::RespError> {
                 .parse() // TODO: ParseError
                 .unwrap();
 
-            let data  = input
+            let data = input
                 .filter_map(|i| parse(i).ok())
                 .collect();
 
@@ -114,7 +114,7 @@ fn split_at_terminator(buffer: &str, inclusive: bool) -> Vec<&str> {
     if inclusive {
         return buffer
             .split_inclusive(resp::TERMINATOR)
-            .collect()
+            .collect();
     }
     buffer
         .split(resp::TERMINATOR)
@@ -137,7 +137,7 @@ mod tests {
     pub fn parse_error() {
         let expected = Data::Error(Error {
             kind: "Error".to_string(),
-            message: "message".to_string()
+            message: "message".to_string(),
         });
         let result = crate::parse("-Error message\r\n");
 
