@@ -6,19 +6,16 @@ pub fn parse(buffer: &str) -> Result<resp::Data, resp::error::RespError> {
     }
 
     let (first_byte, rest) = split_at_first_byte(&buffer);
-    dbg!(&rest);
 
-    // if first_byte != "*" {
-        if let Some(val) = rest.last() {
-            if !val.is_empty() {
+    if let Some(val) = rest.last() {
+        if !val.is_empty() {
+            if first_byte != "*" {
                 return Err(resp::error::RespError::SyntaxError(resp::error::SyntaxError {
                     message: format!("Invalid buffer `{}`, not terminated with \r\n", buffer)
                 }))
             }
         }
-    // } else {
-    //     dbg!(&first_byte);
-    // }
+    }
 
 
     match first_byte {
@@ -51,14 +48,12 @@ pub fn parse(buffer: &str) -> Result<resp::Data, resp::error::RespError> {
 
             let length = input.next()
                 .unwrap() // TODO: SyntaxError
+                .replace(resp::TERMINATOR, "")
                 .parse() // TODO: ParseError
                 .unwrap();
 
             let data  = input
-                .filter_map(|i| {
-                    dbg!(&i);
-                    parse(i).ok()
-                })
+                .filter_map(|i| parse(i).ok())
                 .collect();
 
             Ok(resp::Data::Array(resp::Array {
@@ -102,7 +97,8 @@ pub fn parse(buffer: &str) -> Result<resp::Data, resp::error::RespError> {
 
 fn split_at_first_byte(buffer: &str) -> (&str, Vec<&str>) {
     let first_byte = get_first_byte(&buffer);
-    let input = remove_terminator(skip_fist_byte(buffer));
+    let inclusive = first_byte == "*";
+    let input = split_at_terminator(skip_fist_byte(buffer), inclusive);
     (first_byte, input)
 }
 
@@ -114,7 +110,12 @@ fn skip_fist_byte(buffer: &str) -> &str {
     &buffer[1..]
 }
 
-fn remove_terminator(buffer: &str) -> Vec<&str> {
+fn split_at_terminator(buffer: &str, inclusive: bool) -> Vec<&str> {
+    if inclusive {
+        return buffer
+            .split_inclusive(resp::TERMINATOR)
+            .collect()
+    }
     buffer
         .split(resp::TERMINATOR)
         .collect()
@@ -158,7 +159,7 @@ mod tests {
         #[test]
         pub fn parse_integer_error() {
             let expected: Result<Data, RespError> = Err(RespError::SyntaxError(SyntaxError {
-                message: "Invalid buffer `10`, not terminated with \r\n".to_string()
+                message: "Invalid buffer `:10`, not terminated with \r\n".to_string()
             }));
             let result = crate::parse(":10");
 
@@ -191,7 +192,7 @@ mod tests {
                 ),
             });
 
-            let result = crate::parse("*3\r\n:1\r\n:2\r\n:3");
+            let result = crate::parse("*3\r\n:1\r\n:2\r\n:3\r\n");
 
             assert_eq!(result, Ok(expected));
         }
