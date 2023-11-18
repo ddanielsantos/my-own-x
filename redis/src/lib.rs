@@ -10,9 +10,7 @@ pub fn parse(buffer: &str) -> Result<resp::Data, resp::error::RespError> {
     if let Some(val) = rest.last() {
         if !val.is_empty() && first_byte != "*" {
             return Err(resp::error::RespError::SyntaxError(
-                resp::error::SyntaxError {
-                    message: format!("Invalid buffer `{}`, not terminated with \r\n", buffer),
-                },
+                resp::error::SyntaxError { message: format!("Invalid buffer, it should be terminated with \r\n"), },
             ));
         }
     }
@@ -148,7 +146,7 @@ mod tests {
         #[test]
         pub fn parse_integer_error() {
             let expected: Result<Data, RespError> = Err(RespError::SyntaxError(SyntaxError {
-                message: "Invalid buffer `:10`, not terminated with \r\n".to_string(),
+                message: "Invalid buffer, it should be terminated with \r\n".to_string(),
             }));
             let result = crate::parse(":10");
 
