@@ -46,5 +46,5 @@ pub struct BulkString {
 #[derive(PartialEq, Debug)]
 pub struct Array {
     pub length: usize,
-    pub data: Vec<Data>
+    pub data: Vec<Data>,
 }
