@@ -181,5 +181,51 @@ mod tests {
 
             assert_eq!(result, Ok(expected));
         }
+
+        #[test]
+        pub fn parse_empty_array() {
+            let expected = Data::Array(Array {
+                length: 0,
+                data: vec![],
+            });
+
+            let result = crate::parse("*0\r\n");
+
+            assert_eq!(result, Ok(expected));
+        }
+
+        #[test]
+        pub fn parse_array_with_different_types() {
+            let expected = Data::Array(Array {
+                length: 3,
+                data: vec![Data::Integer(1), Data::String("awesome test".to_string()), Data::Integer(3)],
+            });
+
+            let result = crate::parse("*3\r\n:1\r\n+awesome test\r\n:3\r\n");
+
+            assert_eq!(result, Ok(expected));
+        }
+
+        #[test]
+        #[ignore]
+        pub fn parse_nested_array() {
+            let expected = Data::Array(Array {
+                length: 2,
+                data: vec![
+                    Data::Integer(1),
+                    Data::Array(Array {
+                        length: 2,
+                        data: vec![
+                            Data::Integer(2),
+                            Data::Integer(3),
+                        ],
+                    }),
+                ],
+            });
+
+            let result = crate::parse("*2\r\n:1\r\n*2\r\n:2\r\n:3\r\n");
+
+            assert_eq!(result, Ok(expected));
+        }
     }
 }
