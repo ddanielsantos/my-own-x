@@ -52,33 +52,6 @@ pub fn parse(buffer: &str) -> Result<resp::Data, resp::error::RespError> {
 
             Ok(resp::Data::Array(resp::Array { length, data }))
         }
-        // "_" => {
-        //     Data::parse(input, DataKind::Null)
-        // }
-        // "#" => {
-        //     Data::parse(input, DataKind::Boolean)
-        // }
-        // "," => {
-        //     Data::parse(input, DataKind::Double)
-        // }
-        // "(" => {
-        //     Data::parse(input, DataKind::BigNumber)
-        // }
-        // "!" => {
-        //     Data::parse(input, DataKind::BulkError)
-        // }
-        // "=" => {
-        //     Data::parse(input, DataKind::VerbatimString)
-        // }
-        // "%" => {
-        //     Data::parse(input, DataKind::Map)
-        // }
-        // "~" => {
-        //     Data::parse(input, DataKind::Set)
-        // }
-        // ">" => {
-        //     Data::parse(input, DataKind::Push)
-        // }
         e => {
             dbg!(&e);
             Err(resp::error::RespError::InvalidPrefix)
