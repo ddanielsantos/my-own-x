@@ -95,7 +95,22 @@ fn split_at_terminator(buffer: &str, inclusive: bool) -> Vec<&str> {
 
 #[cfg(test)]
 mod tests {
-    use crate::resp::{BulkString, Data, Error};
+    use crate::{
+        resp::error::RespError,
+        resp::{BulkString, Data, Error},
+    };
+
+    pub fn assert_len(result: Result<Data, RespError>) {
+        match result {
+            Ok(Data::Array(arr)) => {
+                assert_eq!(arr.data.len(), arr.length)
+            }
+            // TODO add support to maps and sets
+            _ => {
+                panic!("Result was not an array")
+            }
+        }
+    }
 
     #[test]
     pub fn parse_string() {
@@ -166,6 +181,7 @@ mod tests {
             let result = crate::parse("*3\r\n:1\r\n:2\r\n:3\r\n");
 
             assert_eq!(result, Ok(expected));
+            assert_len(result);
         }
 
         #[test]
@@ -178,6 +194,7 @@ mod tests {
             let result = crate::parse("*0\r\n");
 
             assert_eq!(result, Ok(expected));
+            assert_len(result);
         }
 
         #[test]
@@ -194,6 +211,7 @@ mod tests {
             let result = crate::parse("*3\r\n:1\r\n+awesome test\r\n:3\r\n");
 
             assert_eq!(result, Ok(expected));
+            assert_len(result);
         }
 
         #[test]
@@ -213,6 +231,7 @@ mod tests {
             let result = crate::parse("*2\r\n:1\r\n*2\r\n:2\r\n:3\r\n");
 
             assert_eq!(result, Ok(expected));
+            assert_len(result);
         }
     }
 }
