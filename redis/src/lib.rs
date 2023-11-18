@@ -11,7 +11,9 @@ pub fn parse(buffer: &str) -> Result<resp::Data, resp::error::RespError> {
     if let Some(val) = rest.last() {
         if !val.is_empty() && first_byte != "*" {
             return Err(resp::error::RespError::SyntaxError(
-                resp::error::SyntaxError { message: format!("Invalid buffer, it should be terminated with \r\n"), },
+                resp::error::SyntaxError {
+                    message: "Invalid buffer, it should be terminated with \r\n".to_string(),
+                },
             ));
         }
     }
@@ -19,7 +21,10 @@ pub fn parse(buffer: &str) -> Result<resp::Data, resp::error::RespError> {
     parse_internal(first_byte, &rest)
 }
 
-fn parse_internal(first_byte: &str, rest: &Vec<&str>) -> Result<resp::Data, resp::error::RespError> {
+fn parse_internal(
+    first_byte: &str,
+    rest: &Vec<&str>,
+) -> Result<resp::Data, resp::error::RespError> {
     match first_byte {
         "+" => Ok(resp::Data::String(rest.join(""))),
         "-" => {
@@ -146,7 +151,10 @@ mod tests {
     }
 
     mod arrays {
-        use crate::resp::{Array, Data};
+        use crate::{
+            resp::{Array, Data},
+            tests::assert_len,
+        };
 
         #[test]
         pub fn parse_array() {
@@ -176,7 +184,11 @@ mod tests {
         pub fn parse_array_with_different_types() {
             let expected = Data::Array(Array {
                 length: 3,
-                data: vec![Data::Integer(1), Data::String("awesome test".to_string()), Data::Integer(3)],
+                data: vec![
+                    Data::Integer(1),
+                    Data::String("awesome test".to_string()),
+                    Data::Integer(3),
+                ],
             });
 
             let result = crate::parse("*3\r\n:1\r\n+awesome test\r\n:3\r\n");
@@ -193,10 +205,7 @@ mod tests {
                     Data::Integer(1),
                     Data::Array(Array {
                         length: 2,
-                        data: vec![
-                            Data::Integer(2),
-                            Data::Integer(3),
-                        ],
+                        data: vec![Data::Integer(2), Data::Integer(3)],
                     }),
                 ],
             });
