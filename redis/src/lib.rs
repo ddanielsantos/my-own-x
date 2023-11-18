@@ -1,6 +1,7 @@
 mod resp;
 
 pub fn parse(buffer: &str) -> Result<resp::Data, resp::error::RespError> {
+    dbg!(&buffer);
     if buffer.is_empty() {
         return Err(resp::error::RespError::EmptyBuffer);
     }
@@ -15,6 +16,10 @@ pub fn parse(buffer: &str) -> Result<resp::Data, resp::error::RespError> {
         }
     }
 
+    parse_internal(first_byte, &rest)
+}
+
+fn parse_internal(first_byte: &str, rest: &Vec<&str>) -> Result<resp::Data, resp::error::RespError> {
     match first_byte {
         "+" => Ok(resp::Data::String(rest.join(""))),
         "-" => {
@@ -48,6 +53,8 @@ pub fn parse(buffer: &str) -> Result<resp::Data, resp::error::RespError> {
                 .parse() // TODO: ParseError
                 .unwrap();
 
+            dbg!(&length);
+            dbg!(&rest);
             let data = input.filter_map(|i| parse(i).ok()).collect();
 
             Ok(resp::Data::Array(resp::Array { length, data }))
