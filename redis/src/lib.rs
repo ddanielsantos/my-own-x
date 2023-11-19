@@ -1,30 +1,28 @@
 mod resp;
 
-pub fn parse(buffer: &str) -> Result<resp::Data, resp::error::RespError> {
+pub fn parse(buffer: &str) -> resp::Result {
     dbg!(&buffer);
     if buffer.is_empty() {
-        return Err(resp::error::RespError::EmptyBuffer);
+        return Err(vec![resp::error::RespError::EmptyBuffer]);
     }
 
     let (first_byte, rest) = split_at_first_byte(buffer);
 
     if let Some(val) = rest.last() {
         if !val.is_empty() && first_byte != "*" {
-            return Err(resp::error::RespError::SyntaxError(
-                resp::error::SyntaxError {
-                    message: "Invalid buffer, it should be terminated with \r\n".to_string(),
-                },
-            ));
+            return Err(vec![resp::error::RespError::SyntaxError(resp::error::SyntaxError {
+                message: "Invalid buffer, it should be terminated with \r\n".to_string(),
+            })]);
         }
     }
 
     parse_internal(first_byte, &rest)
 }
 
-fn parse_internal(
+fn parse_internal<'a>(
     first_byte: &str,
     rest: &Vec<&str>,
-) -> Result<resp::Data, resp::error::RespError> {
+) -> resp::Result {
     match first_byte {
         "+" => Ok(resp::Data::String(rest.join(""))),
         "-" => {
@@ -60,13 +58,31 @@ fn parse_internal(
 
             dbg!(&length);
             dbg!(&rest);
-            let data = input.filter_map(|i| parse(i).ok()).collect();
+
+            let data = input
+                .map(|i| {
+                    let (first_byte, rest) = split_at_first_byte(i);
+
+                    parse_internal(first_byte, &rest)
+                });
+
+            let errors: Vec<resp::error::RespError> = data.clone()
+                .filter_map(|res| res.err())
+                .flatten()
+                .collect();
+
+            if !errors.is_empty() {
+                return Err(errors);
+            }
+
+            let data: Vec<resp::Data> = data.filter_map(|res| res.ok())
+                .collect();
 
             Ok(resp::Data::Array(resp::Array { length, data }))
         }
         e => {
             dbg!(&e);
-            Err(resp::error::RespError::InvalidPrefix)
+            Err(vec![resp::error::RespError::InvalidPrefix])
         }
     }
 }
@@ -96,11 +112,11 @@ fn split_at_terminator(buffer: &str, inclusive: bool) -> Vec<&str> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        resp::error::RespError,
-        resp::{BulkString, Data, Error},
+        resp,
+        resp::{BulkString, Data, Error}
     };
 
-    pub fn assert_len(result: Result<Data, RespError>) {
+    pub fn assert_len(result: resp::Result) {
         match result {
             Ok(Data::Array(arr)) => {
                 assert_eq!(arr.data.len(), arr.length)
@@ -132,6 +148,7 @@ mod tests {
     }
 
     mod integer {
+        use crate::resp;
         use crate::resp::error::{RespError, SyntaxError};
         use crate::resp::Data;
 
@@ -145,9 +162,9 @@ mod tests {
 
         #[test]
         pub fn parse_integer_error() {
-            let expected: Result<Data, RespError> = Err(RespError::SyntaxError(SyntaxError {
+            let expected: resp::Result = Err(vec![RespError::SyntaxError(SyntaxError {
                 message: "Invalid buffer, it should be terminated with \r\n".to_string(),
-            }));
+            })]);
             let result = crate::parse(":10");
 
             assert_eq!(result, expected);
@@ -215,7 +232,6 @@ mod tests {
         }
 
         #[test]
-        #[ignore]
         pub fn parse_nested_array() {
             let expected = Data::Array(Array {
                 length: 2,

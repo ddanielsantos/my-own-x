@@ -48,3 +48,5 @@ pub struct Array {
     pub length: usize,
     pub data: Vec<Data>,
 }
+
+pub type Result = std::result::Result<Data, Vec<error::RespError>>;
