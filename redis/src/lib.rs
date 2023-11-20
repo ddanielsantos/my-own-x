@@ -116,9 +116,10 @@ mod tests {
         resp::{BulkString, Data, Error}
     };
 
-    pub fn assert_len(result: resp::Result) {
+    pub fn assert_len(expected: usize, result: resp::Result) {
         match result {
             Ok(Data::Array(arr)) => {
+                assert_eq!(expected, arr.length);
                 assert_eq!(arr.data.len(), arr.length)
             }
             // TODO add support to maps and sets
@@ -198,7 +199,7 @@ mod tests {
             let result = crate::parse("*3\r\n:1\r\n:2\r\n:3\r\n");
 
             assert_eq!(result, Ok(expected));
-            assert_len(result);
+            assert_len(3, result);
         }
 
         #[test]
@@ -211,7 +212,7 @@ mod tests {
             let result = crate::parse("*0\r\n");
 
             assert_eq!(result, Ok(expected));
-            assert_len(result);
+            assert_len(0, result);
         }
 
         #[test]
@@ -228,7 +229,7 @@ mod tests {
             let result = crate::parse("*3\r\n:1\r\n+awesome test\r\n:3\r\n");
 
             assert_eq!(result, Ok(expected));
-            assert_len(result);
+            assert_len(3, result);
         }
 
         #[test]
