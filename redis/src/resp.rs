@@ -1,4 +1,5 @@
 pub const TERMINATOR: &str = "\r\n";
+pub const AGGREGATE_PREFIXES: &[&str] = &["*"];
 
 pub mod error {
     #[derive(PartialEq, Debug)]

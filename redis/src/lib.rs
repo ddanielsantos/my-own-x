@@ -89,7 +89,7 @@ fn parse_internal<'a>(
 
 fn split_at_first_byte(buffer: &str) -> (&str, Vec<&str>) {
     let first_byte = get_first_byte(buffer);
-    let inclusive = first_byte == "*";
+    let inclusive = resp::AGGREGATE_PREFIXES.contains(&first_byte);
     let input = split_at_terminator(skip_fist_byte(buffer), inclusive);
     (first_byte, input)
 }
