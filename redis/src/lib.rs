@@ -1,95 +1,92 @@
 mod resp;
 
 pub fn parse(buffer: &str) -> resp::Result {
-    dbg!(&buffer);
-    if buffer.is_empty() {
-        return Err(vec![resp::error::RespError::EmptyBuffer]);
-    }
+    let first_byte = get_first_byte(buffer);
 
-    let (first_byte, rest) = split_at_first_byte(buffer);
-
-    if let Some(val) = rest.last() {
-        if !val.is_empty() && first_byte != "*" {
-            return Err(vec![resp::error::RespError::SyntaxError(resp::error::SyntaxError {
-                message: "Invalid buffer, it should be terminated with \r\n".to_string(),
-            })]);
-        }
-    }
-
-    parse_internal(first_byte, &rest)
+    parse_internal_1(first_byte, &buffer)
 }
 
-fn parse_internal<'a>(
-    first_byte: &str,
-    rest: &Vec<&str>,
-) -> resp::Result {
+fn parse_string(buffer: &str) -> resp::Result {
+    let b = skip_fist_byte(buffer);
+    let b = b.replace(resp::TERMINATOR, "");
+    Ok(resp::Data::String(b))
+}
+
+fn parse_error(buffer: &str) -> resp::Result {
+    let b = skip_fist_byte(buffer);
+    let b = b.replace(resp::TERMINATOR, "");
+    let mut b = b.splitn(2, ' ');
+    Ok(resp::Data::Error(resp::Error {
+        kind: b.next().unwrap().to_string(),
+        message: b.next().unwrap().to_string(),
+    }))
+}
+
+fn parse_integer(buffer: &str) -> resp::Result {
+    dbg!(&buffer);
+    let b = skip_fist_byte(buffer);
+
+    if !b.ends_with(resp::TERMINATOR) {
+        return Err(vec![resp::error::RespError::SyntaxError(
+            resp::error::SyntaxError {
+                message: "Invalid buffer, it should be terminated with \r\n".to_string(),
+            },
+        )]);
+    }
+
+    let b = b.replace(resp::TERMINATOR, "");
+    dbg!(&b);
+    Ok(resp::Data::Integer(b.parse().unwrap()))
+}
+
+fn parse_bulk_string(buffer: &str) -> resp::Result {
+    let b = skip_fist_byte(buffer);
+    let mut b = b
+        .splitn(2, resp::TERMINATOR)
+        .map(|s| s.replace(resp::TERMINATOR, ""));
+    Ok(resp::Data::BulkString(resp::BulkString {
+        length: b.next().unwrap().parse().unwrap(),
+        data: b.next().unwrap().to_string(),
+    }))
+}
+
+fn parse_array(buffer: &str) -> resp::Result {
+    let b = skip_fist_byte(buffer);
+    dbg!(&b);
+    let mut b = b.splitn(2, resp::TERMINATOR).into_iter();
+
+    let length: usize = b.next().unwrap().parse().unwrap();
+
+    if length == 0 {
+        return Ok(resp::Data::Array(resp::Array {
+            length,
+            data: vec![],
+        }));
+    }
+
+    let b = b.next().unwrap();
+    dbg!(&b); // TODO tentar pegar o proximo chunk
+
+    let data: Vec<resp::Data> = b
+        .split_inclusive(resp::TERMINATOR)
+        .filter_map(|b| parse(b).ok())
+        .collect();
+
+    Ok(resp::Data::Array(resp::Array { length, data }))
+}
+
+fn parse_internal_1<'a>(first_byte: &str, buffer: &str) -> resp::Result {
     match first_byte {
-        "+" => Ok(resp::Data::String(rest.join(""))),
-        "-" => {
-            let st = rest.join("");
-            let mut split = st.splitn(2, ' ');
-
-            Ok(resp::Data::Error(resp::Error {
-                kind: split.next().unwrap_or_default().to_string(),
-                message: split.next().unwrap_or_default().to_string(),
-            }))
-        }
-        ":" => {
-            let parse_result: usize = rest.first().unwrap().parse().unwrap();
-            Ok(resp::Data::Integer(parse_result))
-        }
-        "$" => {
-            let blk = resp::BulkString {
-                length: rest.first().unwrap().to_string().parse().unwrap(),
-                data: rest.get(1).unwrap().to_string(),
-            };
-
-            Ok(resp::Data::BulkString(blk))
-        }
-        "*" => {
-            let mut input = rest.iter();
-
-            let length = input
-                .next()
-                .unwrap() // TODO: SyntaxError
-                .replace(resp::TERMINATOR, "")
-                .parse() // TODO: ParseError
-                .unwrap();
-
-            dbg!(&length);
-            dbg!(&rest);
-
-            let data = input.map(|i| {
-                dbg!(&i);
-                parse(i)
-            });
-
-            let errors: Vec<resp::error::RespError> = data.clone()
-                .filter_map(|res| res.err())
-                .flatten()
-                .collect();
-
-            if !errors.is_empty() {
-                return Err(errors);
-            }
-
-            let data: Vec<resp::Data> = data.filter_map(|res| res.ok())
-                .collect();
-
-            Ok(resp::Data::Array(resp::Array { length, data }))
-        }
+        "+" => parse_string(buffer),
+        "-" => parse_error(buffer),
+        ":" => parse_integer(buffer),
+        "$" => parse_bulk_string(buffer),
+        "*" => parse_array(buffer),
         e => {
             dbg!(&e);
             Err(vec![resp::error::RespError::InvalidPrefix])
         }
     }
-}
-
-fn split_at_first_byte(buffer: &str) -> (&str, Vec<&str>) {
-    let first_byte = get_first_byte(buffer);
-    let inclusive = resp::AGGREGATE_PREFIXES.contains(&first_byte);
-    let input = split_at_terminator(skip_fist_byte(buffer), inclusive);
-    (first_byte, input)
 }
 
 fn get_first_byte(buffer: &str) -> &str {
@@ -111,7 +108,7 @@ fn split_at_terminator(buffer: &str, inclusive: bool) -> Vec<&str> {
 mod tests {
     use crate::{
         resp,
-        resp::{BulkString, Data, Error}
+        resp::{BulkString, Data, Error},
     };
 
     pub fn assert_len(expected: usize, result: resp::Result) {
@@ -240,13 +237,16 @@ mod tests {
                         length: 1,
                         data: vec![Data::Integer(2)],
                     }),
-                    Data::Integer(3),
+                    Data::Array(Array {
+                        length: 1,
+                        data: vec![Data::Integer(3)],
+                    }),
                 ],
             });
 
-            let result = crate::parse("*2\r\n:1\r\n*1\r\n:2\r\n:3\r\n");
+            let result = crate::parse("*3\r\n:1\r\n*1\r\n:2\r\n*1\r\n:3\r\n");
 
-            // assert_eq!(result, Ok(expected));
+            assert_eq!(result, Ok(expected));
             assert_len(3, result);
         }
     }

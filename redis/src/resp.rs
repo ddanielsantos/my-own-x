@@ -7,10 +7,16 @@ pub mod error {
         InvalidPrefix,
         EmptyBuffer,
         SyntaxError(SyntaxError),
+        ParseError(ParseError),
     }
 
     #[derive(PartialEq, Debug)]
     pub struct SyntaxError {
+        pub message: String,
+    }
+
+    #[derive(PartialEq, Debug)]
+    pub struct ParseError {
         pub message: String,
     }
 }
