@@ -1,7 +1,2 @@
-
-# IDE
-/.idea
-
-# Rust
-
-/**/target/
+**/.idea
+**/target
