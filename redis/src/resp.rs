@@ -1,33 +1,23 @@
 pub const TERMINATOR: &str = "\r\n";
-pub const AGGREGATE_PREFIXES: &[&str] = &["*"];
 
-pub mod error {
-    #[derive(PartialEq, Debug)]
-    pub enum RespError {
-        InvalidPrefix,
-        EmptyBuffer,
-        SyntaxError(SyntaxError),
-        ParseError(ParseError),
-    }
+#[derive(PartialEq, Debug)]
+pub enum ParseError {
+    InvalidPrefix,
+    SyntaxError(SyntaxError),
+}
 
-    #[derive(PartialEq, Debug)]
-    pub struct SyntaxError {
-        pub message: String,
-    }
-
-    #[derive(PartialEq, Debug)]
-    pub struct ParseError {
-        pub message: String,
-    }
+#[derive(PartialEq, Debug)]
+pub struct SyntaxError {
+    pub message: String,
 }
 
 #[derive(PartialEq, Debug)]
 pub enum Data {
     String(String),
     Error(Error),
-    Integer(usize),
+    Integer(isize),
     BulkString(BulkString),
-    Array(Array),
+    Array(Vec<ParseData>),
     Boolean,
     Double,
     BigNumber,
@@ -50,10 +40,6 @@ pub struct BulkString {
     pub data: String,
 }
 
-#[derive(PartialEq, Debug)]
-pub struct Array {
-    pub length: usize,
-    pub data: Vec<Data>,
-}
+pub type ParseData = (Data, usize);
 
-pub type Result = std::result::Result<Data, Vec<error::RespError>>;
+pub type Result = std::result::Result<ParseData, ParseError>;
