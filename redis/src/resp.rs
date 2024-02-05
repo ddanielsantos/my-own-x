@@ -16,16 +16,8 @@ pub enum Data {
     String(String),
     Error(Error),
     Integer(isize),
-    BulkString(BulkString),
+    BulkString(String),
     Array(Vec<ParseData>),
-    Boolean,
-    Double,
-    BigNumber,
-    BulkError,
-    VerbatimString,
-    Map,
-    Set,
-    Push,
 }
 
 #[derive(PartialEq, Debug)]
