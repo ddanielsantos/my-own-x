@@ -11,6 +11,7 @@ fn parse(buffer: &str) -> resp::Result {
         '*' => parse_array(buffer),
         '$' => parse_bulk_string(buffer),
         '_' => parse_null(buffer),
+        '#' => parse_boolean(buffer),
         _ => Err(ParseError::InvalidPrefix)
     }
 }
@@ -70,16 +71,38 @@ fn parse_bulk_string(buffer: &str) -> resp::Result {
     let first_terminator_index = get_terminator_index(buffer)?;
     let last_terminator_index = get_rterminator_index(buffer)?;
     let data = &buffer[first_terminator_index + 2..last_terminator_index];
-    Ok((Data::BulkString(data.to_string()), data.len()))
+
+    Ok((Data::BulkString(data.to_string()), data.len())) // TODO: idk if this is ok, add more tests
 }
 
 fn parse_null(buffer: &str) -> resp::Result {
     Ok((Data::Null, buffer.len()))
 }
 
+fn parse_boolean(buffer: &str) -> resp::Result {
+    match &buffer.chars().nth(1) {
+        None => {
+            Err(ParseError::SyntaxError(SyntaxError { message: "Could not find identify boolean variant".to_string() }))
+        }
+        Some(c) => {
+            match c {
+                't' => {
+                    Ok((Data::Boolean(true), buffer.len()))
+                },
+                'f' => {
+                    Ok((Data::Boolean(false), buffer.len()))
+                },
+                _ => {
+                    Err(ParseError::SyntaxError(SyntaxError { message: "Could not find identify boolean variant".to_string() }))
+                }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::{resp, resp::Data};
+    use crate::{resp, resp::Data, ParseError, SyntaxError};
 
     #[test]
     pub fn parse_string() {
@@ -179,5 +202,23 @@ mod tests {
         let result = crate::parse("_\r\n");
 
         assert_eq!(result, Ok((expected, 3)));
+    }
+
+    #[test]
+    pub fn parse_boolean() {
+        let expected = Data::Boolean(true);
+        let result = crate::parse("#t\r\n");
+
+        assert_eq!(result, Ok((expected, 4)));
+
+        let expected = Data::Boolean(false);
+        let result = crate::parse("#f\r\n");
+
+        assert_eq!(result, Ok((expected, 4)));
+
+        let expected = Err(ParseError::SyntaxError(SyntaxError { message: "Could not find identify boolean variant".to_string() }));
+        let result = crate::parse("#z\r\n");
+
+        assert_eq!(result, expected);
     }
 }
