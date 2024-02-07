@@ -10,6 +10,7 @@ fn parse(buffer: &str) -> resp::Result {
         '-' => parse_error(buffer),
         '*' => parse_array(buffer),
         '$' => parse_bulk_string(buffer),
+        '_' => parse_null(buffer),
         _ => Err(ParseError::InvalidPrefix)
     }
 }
@@ -70,6 +71,10 @@ fn parse_bulk_string(buffer: &str) -> resp::Result {
     let last_terminator_index = get_rterminator_index(buffer)?;
     let data = &buffer[first_terminator_index + 2..last_terminator_index];
     Ok((Data::BulkString(data.to_string()), data.len()))
+}
+
+fn parse_null(buffer: &str) -> resp::Result {
+    Ok((Data::Null, buffer.len()))
 }
 
 #[cfg(test)]
@@ -166,5 +171,13 @@ mod tests {
         let result = crate::parse("$0\r\n\r\n");
 
         assert_eq!(result, Ok((expected, 0)));
+    }
+
+    #[test]
+    pub fn parse_null() {
+        let expected = Data::Null;
+        let result = crate::parse("_\r\n");
+
+        assert_eq!(result, Ok((expected, 3)));
     }
 }

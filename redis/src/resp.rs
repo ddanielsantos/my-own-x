@@ -18,6 +18,7 @@ pub enum Data {
     Integer(isize),
     BulkString(String),
     Array(Vec<ParseData>),
+    Null,
 }
 
 #[derive(PartialEq, Debug)]
